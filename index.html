@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>БитТренер: тетрадь для ЕГЭ по информатике</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>БитТренер</h1>
+  <p>Тетрадь для ЕГЭ по информатике. Выбирайте задание по номеру из КЕГЭ. Числа каждый раз новые, поэтому ответ не выучить, а можно только научиться решать.</p>
+  <div class="lv">
+    <b id="lvn"></b>
+    <span class="bar"><i id="xp"></i></span>
+    <span id="lvt"></span>
+    <span id="stk"></span>
+  </div>
+</header>
+
+<nav id="tabs">
+  <button data-t="train" class="on">Тренировка</button>
+  <button data-t="sprint">Спринт на 10 минут</button>
+  <button data-t="stat">Моя тетрадь</button>
+</nav>
+
+<main>
+  <div id="topics"></div>
+  <p id="ng" class="note" hidden></p>
+
+  <div id="intro" class="sheet" hidden>
+    <p>В спринте 8 заданий из разных номеров, без заданий с файлами. На всё даётся 10 минут. Подсказок нет, как на экзамене. В конце красной ручкой ставится оценка.</p>
+    <button id="go">Начать спринт</button>
+  </div>
+
+  <div id="bar" hidden><span id="cnt"></span><span id="tm"></span></div>
+
+  <article id="card" class="sheet" hidden>
+    <p id="tag" class="tag"></p>
+    <p id="q"></p>
+    <p id="fl" class="fl" hidden></p>
+    <div class="row">
+      <input id="ans" autocomplete="off" aria-label="Ответ">
+      <button id="chk">Проверить</button>
+    </div>
+    <div class="row">
+      <button id="hint" class="ghost">Подсказка</button>
+      <button id="nxt" class="ghost">Другое задание</button>
+    </div>
+    <p id="hn" class="note" hidden></p>
+    <div id="fb" hidden></div>
+    <div id="sol" class="note" hidden></div>
+    <p class="src">Больше реальных заданий этого типа: <a href="https://ege.fipi.ru/bank/index.php?proj=B9ACA5BBB2E19E434CD6BEC25284C67F" target="_blank" rel="noopener">открытый банк ФИПИ</a> и <a href="https://kompege.ru/" target="_blank" rel="noopener">kompege.ru</a></p>
+  </article>
+
+  <article id="res" class="sheet" hidden></article>
+  <section id="stat" hidden></section>
+</main>
+<script src="script.js"></script>
+</body>
+</html>
