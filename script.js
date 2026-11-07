@@ -421,12 +421,14 @@ const T = [
    }},
 
   // --- Задание 18 (Большая сетка 10х10 на сайте с внутренними стенами) ---
-  {id: 'rob', name: 'Робот в таблице (10х10 со стенами)', n: 18,
-   h: 'Заполните таблицу динамики. Сквозь толстые красные стены переходить нельзя.',
+  // --- Задание 18 (Сетка 10х10 со стенами + файл 18.xls со стилями границ) ---
+  {id: 'rob', name: 'Робот в таблице (файл 18.xls)', n: 18, f: 1,
+   h: 'Откройте файл 18.xls в LibreOffice Calc / Excel. Заполните таблицы для максимума и минимума с учетом стен.',
    g() {
      const size = 10;
      const m = Array.from({length: size}, () => Array.from({length: size}, () => r(10, 85)));
 
+     // Внутренние стены
      const walls = [
        {r: 1, c: 2, type: 'R'}, {r: 2, c: 2, type: 'R'}, {r: 3, c: 2, type: 'R'},
        {r: 4, c: 4, type: 'B'}, {r: 4, c: 5, type: 'B'}, {r: 4, c: 6, type: 'B'},
@@ -438,6 +440,7 @@ const T = [
      const hasWallR = (i, j) => walls.some(w => w.r === i && w.c === j && w.type === 'R');
      const hasWallB = (i, j) => walls.some(w => w.r === i && w.c === j && w.type === 'B');
 
+     // Динамика max / min
      const dpMax = Array.from({length: size}, () => Array(size).fill(-1e9));
      const dpMin = Array.from({length: size}, () => Array(size).fill(1e9));
      dpMax[0][0] = m[0][0];
@@ -466,26 +469,65 @@ const T = [
      const ansMax = dpMax[size - 1][size - 1];
      const ansMin = dpMin[size - 1][size - 1];
 
-     let tableHtml = '<div style="overflow-x:auto;"><table class="g" style="margin:14px auto; font-size:13px;">';
+     // Генерация XML Spreadsheet 2003 со встроенными стилями толстых границ
+     let xmlRows = '';
      for (let i = 0; i < size; i++) {
-       tableHtml += '<tr>';
+       xmlRows += '<Row>';
        for (let j = 0; j < size; j++) {
-         let st = [];
-         if (hasWallR(i, j)) st.push('border-right: 4px solid #d02438;');
-         if (hasWallB(i, j)) st.push('border-bottom: 4px solid #d02438;');
-         tableHtml += `<td style="${st.join(' ')}; width:28px; height:28px; padding:2px;">${m[i][j]}</td>`;
+         const wR = hasWallR(i, j);
+         const wB = hasWallB(i, j);
+         let styleId = 'Default';
+         if (wR && wB) styleId = 'wRB';
+         else if (wR) styleId = 'wR';
+         else if (wB) styleId = 'wB';
+         xmlRows += `<Cell ss:StyleID="${styleId}"><Data ss:Type="Number">${m[i][j]}</Data></Cell>`;
        }
-       tableHtml += '</tr>';
+       xmlRows += '</Row>';
      }
-     tableHtml += '</table></div>';
+
+     const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="wR">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="wB">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="wRB">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
+   </Borders>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Лист1">
+  <Table>
+   ${xmlRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
 
      return {
-       q: `Квадрат разлинован на 10×10 клеток. Исполнитель Робот может перемещаться по клеткам, выполняя за одно перемещение одну из двух команд: «вправо» или «вниз». Между соседними клетками также могут быть внутренние стены (обозначены жирными линиями). Сквозь стену Робот пройти не может. При посещении клетки Робот забирает монету с собой.<br>Определите <b>максимальную и минимальную</b> денежные суммы, которые может собрать Робот, пройдя из левой верхней клетки в правую нижнюю. В ответе укажите <b>два числа через пробел</b>: сначала максимальную сумму, затем минимальную.${tableHtml}`,
+       file: {name: '18.xls', text: xml, mime: 'application/vnd.ms-excel;charset=utf-8;'},
+       q: `Квадрат разлинован на клетки размером 10×10 (файл 18.xls). Исполнитель Робот может перемещаться по клеткам, выполняя одну из двух команд: «вправо» или «вниз». Между соседними клетками есть внутренние стены (в таблице они выделены жирными линиями). Сквозь стену Робот пройти не может. При посещении клетки Робот забирает монету с собой.<br>Определите <b>максимальную и минимальную</b> денежные суммы, которые может собрать Робот, пройдя из левой верхней клетки в правую нижнюю. В ответе укажите <b>два числа через пробел</b>: сначала максимальную сумму, затем минимальную.`,
        a: `${ansMax} ${ansMin}`,
-       s: `Применяем динамическое программирование для максимальной и минимальной сумм. Стены блокируют переход из соседних клеток. Максимальная сумма = ${ansMax}, минимальная сумма = ${ansMin}. Ответ: ${ansMax} ${ansMin}.`
+       s: `1. Открываем файл 18.xls в табличном процессоре.\n2. В стороне создаем таблицу для максимума: =МАКС(слева; сверху) + монета, пропуская переходы сквозь стены.\n3. Аналогично создаем таблицу для минимума через функцию =МИН().\nМаксимальная сумма: ${ansMax}, минимальная: ${ansMin}. Ответ: ${ansMax} ${ansMin}.`
      };
    }},
-
+  
   // --- Задания 19, 20, 21 ---
   ...[false, true].flatMap(two => [19, 20, 21].map(n => {
     const a = pick([1, 2]), N = two ? r(50, 70) : r(40, 70), h = r(6, 12);
