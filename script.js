@@ -493,124 +493,99 @@ const T = [
      };
    }},
 
-// --- Задание 18 (Сетка 10х10 со стенами + кнопка скачивания файла 18.xls) ---
-  {id: 'rob', name: 'Робот в таблице (файл 18.xls)', n: 18, f: 1,
-   h: 'Откройте файл 18.xls в LibreOffice Calc / Excel. Заполните таблицы для максимума и минимума с учетом стен.',
+  // --- Задание 18 (случайные стены и все конечные клетки) ---
+  {id: 'rob', name: 'Робот: стены и конечные клетки', n: 18, f: 1,
+   h: 'Постройте таблицы максимальных и минимальных сумм. Робот останавливается в клетке, из которой нельзя идти ни вправо, ни вниз.',
    g() {
-     const size = 10;
-     const m = Array.from({length: size}, () => Array.from({length: size}, () => r(10, 85)));
+     const size = r(10, 16);
+     const coins = Array.from({length:size}, () => Array.from({length:size}, () => r(1,100)));
+     const wallR = Array.from({length:size}, () => Array(size).fill(false));
+     const wallB = Array.from({length:size}, () => Array(size).fill(false));
+     const protectedR = new Set(), protectedB = new Set();
 
-     const walls = [
-       {r: 1, c: 2, type: 'R'}, {r: 2, c: 2, type: 'R'}, {r: 3, c: 2, type: 'R'},
-       {r: 4, c: 4, type: 'B'}, {r: 4, c: 5, type: 'B'}, {r: 4, c: 6, type: 'B'},
-       {r: 2, c: 6, type: 'R'}, {r: 3, c: 6, type: 'R'},
-       {r: 6, c: 2, type: 'B'}, {r: 6, c: 3, type: 'B'}, {r: 6, c: 4, type: 'B'},
-       {r: 7, c: 7, type: 'R'}, {r: 8, c: 7, type: 'R'}
-     ];
+     // Гарантируем хотя бы один открытый маршрут из начала в правый нижний угол.
+     let i = 0, j = 0;
+     while (i < size-1 || j < size-1) {
+       const right = j < size-1, down = i < size-1;
+       if (right && (!down || Math.random() < 0.5)) {
+         protectedR.add(i+':'+j); j++;
+       } else {
+         protectedB.add(i+':'+j); i++;
+       }
+     }
+     for (i=0;i<size;i++) for (j=0;j<size;j++) {
+       if (j<size-1 && !protectedR.has(i+':'+j)) wallR[i][j] = Math.random()<0.16;
+       if (i<size-1 && !protectedB.has(i+':'+j)) wallB[i][j] = Math.random()<0.16;
+     }
 
-     const hasWallR = (i, j) => walls.some(w => w.r === i && w.c === j && w.type === 'R');
-     const hasWallB = (i, j) => walls.some(w => w.r === i && w.c === j && w.type === 'B');
-
-     const dpMax = Array.from({length: size}, () => Array(size).fill(-1e9));
-     const dpMin = Array.from({length: size}, () => Array(size).fill(1e9));
-     dpMax[0][0] = m[0][0];
-     dpMin[0][0] = m[0][0];
-
-     for (let i = 0; i < size; i++) {
-       for (let j = 0; j < size; j++) {
-         if (i === 0 && j === 0) continue;
-         let tMax = -1e9, lMax = -1e9;
-         let tMin = 1e9, lMin = 1e9;
-
-         if (i > 0 && !hasWallB(i - 1, j)) {
-           tMax = dpMax[i - 1][j]; tMin = dpMin[i - 1][j];
-         }
-         if (j > 0 && !hasWallR(i, j - 1)) {
-           lMax = dpMax[i][j - 1]; lMin = dpMin[i][j - 1];
-         }
-
-         const bMax = Math.max(tMax, lMax);
-         const bMin = Math.min(tMin, lMin);
-         if (bMax > -1e8) dpMax[i][j] = m[i][j] + bMax;
-         if (bMin < 1e8) dpMin[i][j] = m[i][j] + bMin;
+     const maxDp = Array.from({length:size},()=>Array(size).fill(-Infinity));
+     const minDp = Array.from({length:size},()=>Array(size).fill(Infinity));
+     maxDp[0][0] = minDp[0][0] = coins[0][0];
+     for (i=0;i<size;i++) for (j=0;j<size;j++) {
+       if (i===0 && j===0) continue;
+       const mx=[], mn=[];
+       if (i>0 && !wallB[i-1][j] && Number.isFinite(maxDp[i-1][j])) {
+         mx.push(maxDp[i-1][j]); mn.push(minDp[i-1][j]);
+       }
+       if (j>0 && !wallR[i][j-1] && Number.isFinite(maxDp[i][j-1])) {
+         mx.push(maxDp[i][j-1]); mn.push(minDp[i][j-1]);
+       }
+       if (mx.length) {
+         maxDp[i][j] = coins[i][j] + Math.max(...mx);
+         minDp[i][j] = coins[i][j] + Math.min(...mn);
        }
      }
 
-     const ansMax = dpMax[size - 1][size - 1];
-     const ansMin = dpMin[size - 1][size - 1];
-
-     let tableHtml = '<div style="overflow-x:auto;"><table class="g" style="margin:14px auto; font-size:13px;">';
-     for (let i = 0; i < size; i++) {
-       tableHtml += '<tr>';
-       for (let j = 0; j < size; j++) {
-         let st = [];
-         if (hasWallR(i, j)) st.push('border-right: 4px solid #d02438;');
-         if (hasWallB(i, j)) st.push('border-bottom: 4px solid #d02438;');
-         tableHtml += `<td style="${st.join(' ')}; width:28px; height:28px; padding:2px;">${m[i][j]}</td>`;
+     const terminal=[];
+     for (i=0;i<size;i++) for (j=0;j<size;j++) {
+       const noRight = j===size-1 || wallR[i][j];
+       const noDown = i===size-1 || wallB[i][j];
+       if (noRight && noDown && Number.isFinite(maxDp[i][j])) {
+         terminal.push({i,j,max:maxDp[i][j],min:minDp[i][j]});
        }
-       tableHtml += '</tr>';
      }
-     tableHtml += '</table></div>';
+     if (!terminal.length) throw new Error('Нет достижимой конечной клетки');
+     const answerMax = Math.max(...terminal.map(x=>x.max));
+     const answerMin = Math.min(...terminal.map(x=>x.min));
 
-     let xmlRows = '';
-     for (let i = 0; i < size; i++) {
-       xmlRows += '<Row>';
-       for (let j = 0; j < size; j++) {
-         const wR = hasWallR(i, j);
-         const wB = hasWallB(i, j);
-         let styleId = 'Default';
-         if (wR && wB) styleId = 'wRB';
-         else if (wR) styleId = 'wR';
-         else if (wB) styleId = 'wB';
-         xmlRows += `<Cell ss:StyleID="${styleId}"><Data ss:Type="Number">${m[i][j]}</Data></Cell>`;
+     let html='<div style="overflow-x:auto"><table class="g" style="font-size:13px;margin:14px auto">';
+     for (i=0;i<size;i++) {
+       html+='<tr>';
+       for (j=0;j<size;j++) {
+         const b=[];
+         if (j<size-1 && wallR[i][j]) b.push('border-right:4px solid #d02438');
+         if (i<size-1 && wallB[i][j]) b.push('border-bottom:4px solid #d02438');
+         html+='<td style="min-width:30px;height:30px;padding:2px;'+b.join(';')+'">'+coins[i][j]+'</td>';
        }
-       xmlRows += '</Row>';
+       html+='</tr>';
      }
+     html+='</table></div>';
 
-     const xml = `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
- <Styles>
-  <Style ss:ID="Default" ss:Name="Normal">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-  </Style>
-  <Style ss:ID="wR">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="wB">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
-   </Borders>
-  </Style>
-  <Style ss:ID="wRB">
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
-   <Borders>
-    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>
-   </Borders>
-  </Style>
- </Styles>
- <Worksheet ss:Name="Лист1">
-  <Table>
-   ${xmlRows}
-  </Table>
- </Worksheet>
-</Workbook>`;
-
+     let xmlRows='', styles='<Style ss:ID="Default"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>';
+     for (i=0;i<size;i++) {
+       xmlRows+='<Row>';
+       for (j=0;j<size;j++) {
+         const borders=[];
+         if (j<size-1 && wallR[i][j]) borders.push('<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>');
+         if (i<size-1 && wallB[i][j]) borders.push('<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>');
+         const id='W'+i+'_'+j;
+         if (borders.length) styles+='<Style ss:ID="'+id+'"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders>'+borders.join('')+'</Borders></Style>';
+         xmlRows+='<Cell ss:StyleID="'+(borders.length?id:'Default')+'"><Data ss:Type="Number">'+coins[i][j]+'</Data></Cell>';
+       }
+       xmlRows+='</Row>';
+     }
+     const xml='<?xml version="1.0"?>\n<?mso-application progid="Excel.Sheet"?>\n'+
+       '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles>'+
+       styles+'</Styles><Worksheet ss:Name="Поле"><Table>'+xmlRows+'</Table></Worksheet></Workbook>';
      return {
-       file: {name: '18.xls', text: xml, mime: 'application/vnd.ms-excel;charset=utf-8;'},
-       q: `Квадрат разлинован на клетки размером 10×10 (файл 18.xls). Исполнитель Робот может перемещаться по клеткам, выполняя одну из двух команд: «вправо» или «вниз». Между соседними клетками есть внутренние стены (в файле таблицы они выделены жирными линиями). Сквозь стену Робот пройти не может. При посещении клетки Робот забирает монету с собой.<br>Определите <b>максимальную и минимальную</b> денежные суммы, которые может собрать Робот, пройдя из левой верхней клетки в правую нижнюю. В ответе укажите <b>два числа через пробел</b>: сначала максимальную сумму, затем минимальную.${tableHtml}`,
-       a: `${ansMax} ${ansMin}`,
-       s: `1. Открываем файл 18.xls в LibreOffice Calc / Excel.\n2. Строим таблицы для максимума и минимума, пропуская переходы сквозь стены.\nМаксимальная сумма = ${ansMax}, минимальная сумма = ${ansMin}. Ответ: ${ansMax} ${ansMin}.`
+       file:{name:'18.xls',text:xml,mime:'application/vnd.ms-excel;charset=utf-8;'},
+       q:'В файле 18.xls записано поле размером '+size+'×'+size+'. Робот начинает в левой верхней клетке и может двигаться только вправо или вниз. Внутренние стены обозначены утолщёнными красными границами. Посетив клетку, Робот забирает монету. Он останавливается в клетке, из которой нельзя сделать ни один допустимый ход. Найдите максимальную и минимальную суммы среди всех достижимых конечных клеток. В ответе укажите два числа через пробел: сначала максимум, затем минимум.'+html,
+       a:answerMax+' '+answerMin,
+       s:'Для каждой клетки считаем максимальную и минимальную сумму от старта. Переход вправо возможен, если справа нет стены, а переход вниз — если снизу нет стены. Конечные клетки имеют закрытые выходы вправо и вниз либо расположены на внешней границе. Максимальная сумма равна '+answerMax+', минимальная — '+answerMin+'.'
      };
    }},
 
-  // --- Задания 19, 20, 21 ---
+// --- Задания 19, 20, 21 ---
   ...[false, true].flatMap(two => [19, 20, 21].map(n => {
     const a = pick([1, 2]), N = two ? r(50, 70) : r(40, 70), h = r(6, 12);
     const mv = two ? s => [[s[0] + a, s[1]], [s[0], s[1] + a], [s[0] * 2, s[1]], [s[0], s[1] * 2]] : s => [[s[0] + a], [s[0] * 2]];
@@ -644,165 +619,216 @@ const T = [
     };
   })),
 
-  // --- Задание 22 ---
-  {id: 'proc', name: 'Параллельные процессы', n: 22,
-   h: 'Окончание процесса = длительность + максимальное время завершения процессов, от которых он зависит.',
+    // --- Задание 22 (параллельное выполнение на заданной миллисекунде) ---
+  {id: 'proc', name: 'Параллельные процессы', n: 22, f: 1,
+   h: 'Старт процесса — следующая миллисекунда после самого позднего завершения всех его зависимостей.',
    g() {
-     const P = [];
-     for (let i = 0; i < 7; i++) P.push({d: r(2, 9), dep: i ? [...new Set(Array.from({length: r(0, 2)}, () => r(1, i)))].sort((a, b) => a - b) : []});
-     const e = []; P.forEach((p, i) => e[i] = p.d + Math.max(0, ...p.dep.map(k => e[k - 1])));
-     const ans = Math.max(...e);
-     return {q: 'В таблице указаны времена процессов (в мс) и их зависимости. Определите минимальное время завершения всех процессов.' + tbl(['ID', 'Длительность', 'Зависит от'], P.map((p, i) => [i + 1, p.d, p.dep.join(', ') || '–'])),
-       a: String(ans), s: `Максимальное время окончания среди всех цепочек зависимостей: ${ans} мс.`};
+     const N=r(15,24), targetMs=r(6,12), processes=[];
+     for (let id=1;id<=N;id++) {
+       const duration=id<=2?r(8,12):r(1,8);
+       const deps=[];
+       if(id>2) for(let j=1;j<id;j++) if(Math.random()<0.12) deps.push(j);
+       processes.push({id,duration,deps});
+     }
+     const finish=[];
+     for(const p of processes) {
+       p.start=p.deps.length?Math.max(...p.deps.map(id=>finish[id-1]+1)):1;
+       p.finish=p.start+p.duration-1;
+       finish[p.id-1]=p.finish;
+     }
+     const active=processes.filter(p=>p.start<=targetMs&&p.finish>=targetMs).length;
+     const content='ID;Время выполнения, мс;Зависит от ID\n'+
+       processes.map(p=>[p.id,p.duration,p.deps.join(';')||'0'].join(';')).join('\n');
+     return {
+       file:{name:'22.csv',text:content,mime:'text/csv;charset=utf-8;'},
+       q:'В файле 22.csv указаны процессы, время их выполнения и ID процессов, от которых они зависят. Каждый процесс начинается в самое раннее допустимое время и после запуска не приостанавливается. Определите максимальное количество процессов, которые одновременно выполняются на '+targetMs+'-й миллисекунде. Нумерация миллисекунд начинается с 1.',
+       a:String(active),
+       s:'Процесс без зависимостей начинается на 1-й миллисекунде. Остальные стартуют на следующей миллисекунде после завершения последней зависимости. На '+targetMs+'-й миллисекунде работают '+active+' процессов.'
+     };
    }},
 
-  // --- Задание 23 (Новая спецификация КЕГЭ 2027: Граф из файла 23.txt) ---
-  {id: 'prg_graph', name: 'Кратчайший путь в графе (файл)', n: 23, f: 1,
-   h: 'Постройте граф и найдите кратчайший путь рекурсией с lru_cache.',
+  // --- Задание 23 (подсчёт программ исполнителя) ---
+  {id: 'prg', name: 'Количество программ исполнителя', n: 23,
+   h: 'Используйте рекурсивный перебор. Команда деления на 3 может перескочить через запрещённое число.',
    g() {
-     const numNodes = 7;
-     const edges = [
-       `1 2 ${(r(15, 35) / 10).toFixed(1)}`,
-       `2 4 ${(r(20, 45) / 10).toFixed(1)}`,
-       `1 3 ${(r(30, 60) / 10).toFixed(1)}`,
-       `3 5 ${(r(10, 30) / 10).toFixed(1)}`,
-       `4 ${numNodes} ${(r(25, 50) / 10).toFixed(1)}`,
-       `5 ${numNodes} ${(r(15, 40) / 10).toFixed(1)}`,
-       `2 5 ${(r(10, 25) / 10).toFixed(1)}`
-     ];
+     const start=r(19,25), target=2, required=r(11,15), forbidden=r(6,9);
+     const memo=new Map();
+     const countWays=(n,seen)=>{
+       if(n===forbidden||n<target) return 0;
+       if(n===target) return seen?1:0;
+       const key=n+':'+(seen?1:0);
+       if(memo.has(key)) return memo.get(key);
+       let total=0;
+       for(const next of [n-1,n-4,Math.floor(n/3)]) {
+         if(next>=target && next<n && next!==forbidden) {
+           total+=countWays(next,seen||next===required);
+         }
+       }
+       memo.set(key,total);
+       return total;
+     };
+     let answer=countWays(start,start===required);
+     // При неудачной случайной комбинации меняем только обязательный/запрещённый этап.
+     let attempts=0;
+     while(answer===0&&attempts<30) {
+       attempts++;
+       const req=r(10,Math.max(10,start-2));
+       const ban=r(6,9);
+       if(req===ban) continue;
+       memo.clear();
+       const test=(n,seen)=>{
+         if(n===ban||n<target) return 0;
+         if(n===target) return seen?1:0;
+         const key=n+':'+(seen?1:0);
+         if(memo.has(key)) return memo.get(key);
+         let total=0;
+         for(const next of [n-1,n-4,Math.floor(n/3)]) {
+           if(next>=target&&next<n&&next!==ban) total+=test(next,seen||next===req);
+         }
+         memo.set(key,total); return total;
+       };
+       const v=test(start,start===req);
+       if(v>0){answer=v;}
+     }
+     return {
+       q:'Исполнитель преобразует число на экране. Команда A вычитает 1, команда B вычитает 4, команда C заменяет число целой частью от деления на 3. Сколько существует программ, которые преобразуют число '+start+' в число '+target+', при этом траектория вычислений обязательно содержит число '+required+' и не содержит число '+forbidden+'? Траектория — последовательность результатов выполнения команд.',
+       a:String(answer),
+       s:'Перебираем допустимые переходы n−1, n−4 и floor(n/3), не заходя в '+forbidden+'. В состоянии храним, встречалось ли обязательное число '+required+'. Динамический подсчёт даёт '+answer+' программ.'
+     };
+   }},
 
-     const graph = {};
-     edges.forEach(line => {
-       const [u, v, w] = line.split(' ');
-       if (!graph[u]) graph[u] = [];
-       graph[u].push({to: v, w: parseFloat(w)});
+  // --- Задание 24 (максимальная корректная последовательность-выражение) ---
+  {id: 's24', name: 'Корректное арифметическое выражение в файле', n: 24, f: 1,
+   h: 'Число — это 0 либо цифра 6–9 с последующими цифрами 0, 6–9. Между числами должен стоять один знак − или *.',
+   g() {
+     const alphabet=['0','6','7','8','9','-','*'], length=r(2500,4500);
+     const chars=Array.from({length},()=>pick(alphabet));
+     const chunk=pick(['6789*70-89*6','0*78-9*60','9876-70*89*6']);
+     const at=r(100,Math.max(101,length-chunk.length-100));
+     chunk.split('').forEach((ch,i)=>chars[at+i]=ch);
+     const data=chars.join('');
+     const expr=/(?:0|[6789][06789]*)(?:[-*](?:0|[6789][06789]*))*/y;
+     let best=0, bestStart=0;
+     for(let i=0;i<data.length;i++){
+       expr.lastIndex=i;
+       const m=expr.exec(data);
+       if(m&&m[0].length>best){best=m[0].length;bestStart=i;}
+     }
+     return {
+       file:{name:'24.txt',text:data},
+       q:'Текстовый файл 24.txt состоит из цифр 0, 6, 7, 8, 9 и знаков арифметических операций «−» и «*». Определите максимальное количество символов в непрерывной последовательности, которая является корректным арифметическим выражением с целыми неотрицательными числами. Два знака операций не стоят рядом, в записи чисел нет ведущих нулей.',
+       a:String(best),
+       s:'Корректное число — отдельный 0 либо число, начинающееся с 6, 7, 8 или 9. Между числами должен быть ровно один знак операции. Самая длинная последовательность начинается с позиции '+(bestStart+1)+' и содержит '+best+' символов.'
+     };
+   }},
+
+  // --- Задание 25 (маска числа по модели КЕГЭ) ---
+  {id: 'mask25', name: 'Маска числа 3?12?14*5', n: 25,
+   h: 'Знак ? заменяет одну цифру, знак * — любую последовательность цифр. Проверяйте числа до 10^10 и сортируйте найденные значения.',
+   g() {
+     const mask='3?12?14*5', divisor=1917, found=[];
+     for(let a=0;a<=9;a++) for(let b=0;b<=9;b++) for(let len=0;len<=2;len++){
+       const variants=len===0?['']:Array.from({length:10**len},(_,i)=>String(i).padStart(len,'0'));
+       for(const middle of variants){
+         const text='3'+a+'12'+b+'14'+middle+'5', value=Number(text);
+         if(value<=10_000_000_000&&value%divisor===0) found.push({value,quotient:value/divisor});
+       }
+     }
+     found.sort((a,b)=>a.value-b.value);
+     if(!found.length) throw new Error('Для выбранной маски не найдено подходящих чисел');
+     return {
+       q:'Найдите все натуральные числа, не превышающие 10^10, соответствующие маске '+mask+' и делящиеся на '+divisor+' без остатка. Знак «?» означает ровно одну цифру, а «*» — любую последовательность цифр, в том числе пустую. В ответ запишите найденные числа и результаты деления на '+divisor+' в двух столбцах по возрастанию найденных чисел.',
+       a:found.map(x=>x.value+' '+x.quotient).join('\n'),
+       s:'Перебираем две позиции «?» и длину последовательности «*» от нуля до двух цифр, проверяем делимость, сортируем найденные числа и вычисляем частные. Количество найденных чисел: '+found.length+'.'
+     };
+   }},
+
+  // --- Задание 26 (журнал сервера и резервные копии) ---
+  {id: 'srv26', name: 'Журнал сервера: резервные копии', n: 26, f: 1,
+   h: 'Суммируйте передачи по клиентам. Отдельно смоделируйте заполнение буфера и отберите копии до 11:59:59.',
+   g() {
+     const N=240, K=r(7500,10500), chosen=r(1000,9999), records=[];
+     for(let i=0;i<N;i++){
+       const sec=Math.floor(i*86400/N);
+       const hour=Math.floor(sec/3600), minute=Math.floor(sec%3600/60), second=sec%60;
+       const client=i%3===0?chosen:r(1000,9999);
+       const amount=client===chosen?r(550,950):r(80,420);
+       records.push({sec,time:[hour,minute,second].map(x=>String(x).padStart(2,'0')).join(':'),client,amount});
+     }
+     const totals=new Map();
+     for(const x of records) totals.set(x.client,(totals.get(x.client)||0)+x.amount);
+     const winner=[...totals.entries()].sort((a,b)=>b[1]-a[1]||a[0]-b[0])[0][0];
+
+     let buffer=0; const backups=[];
+     for(const x of records){
+       if(buffer>0&&buffer+x.amount>K){
+         backups.push({sec:x.sec,time:x.time,size:buffer});
+         buffer=0;
+       }
+       buffer+=x.amount;
+     }
+     const morning=backups.filter(x=>x.sec<=43199).map(x=>x.size).sort((a,b)=>b-a);
+     if(morning.length<2) throw new Error('Меньше двух резервных копий до полудня');
+     const backupSum=morning[0]+morning[1];
+     const fileText=N+' '+K+'\n'+records.map(x=>x.time+' '+x.client+' '+x.amount).join('\n');
+     return {
+       file:{name:'26.txt',text:fileText},
+       q:'В первой строке файла 26.txt указаны количество запросов N и вместимость буфера K (Кбайт). В следующих строках записаны время запроса, ID клиента и объём переданных данных. Если очередной запрос не помещается, сервер сохраняет резервную копию накопленных данных и очищает буфер, после чего обрабатывает новый запрос. Определите ID клиента, передавшего наибольший суммарный объём данных, и сумму объёмов двух крупнейших резервных копий, созданных не позднее 11:59:59. В ответе укажите два числа через пробел.',
+       a:winner+' '+backupSum,
+       s:'Максимальный суммарный объём передан клиентом '+winner+'. До полудня создано '+morning.length+' резервных копий. Две крупнейшие имеют объёмы '+morning[0]+' и '+morning[1]+' Кбайт; их сумма равна '+backupSum+'.'
+     };
+   }},
+
+  // --- Задание 27 (энергетическая кластеризация и реальная частица-центр) ---
+  {id: 's27', name: 'Кластеры по кинетической энергии', n: 27, f: 1,
+   h: 'Считайте E=0,5·m·(Vx²+Vy²). Центр — реальная частица с минимальной суммой |E−Eдругих|.',
+   g() {
+     const bases=[4.2,12.2,20.2,28.2], groups=[], points=[];
+     const tags=['II','II','II','IV','V','I','III','VI','VII','IV','V'];
+     for(let c=0;c<4;c++){
+       const group=[];
+       for(let k=0;k<11;k++){
+         const targetE=Number((bases[c]+Math.random()*1.4).toFixed(4));
+         const mass=Number((1.2+Math.random()*3.8).toFixed(4));
+         const speed=Math.sqrt(2*targetE/mass), angle=Math.random()*Math.PI*2;
+         const vx=Number((speed*Math.cos(angle)).toFixed(5));
+         const vy=Number((speed*Math.sin(angle)).toFixed(5));
+         const x=Number((c*20+Math.random()*6).toFixed(4));
+         const y=Number((Math.floor(k/4)*7+Math.random()*3).toFixed(4));
+         const energy=0.5*mass*(vx*vx+vy*vy);
+         const p={x,y,vx,vy,mass,tag:tags[k],energy};
+         group.push(p); points.push(p);
+       }
+       groups.push(group);
+     }
+     const centers=groups.map(group=>{
+       let best=group[0], bestSum=Infinity;
+       for(const candidate of group){
+         const sum=group.reduce((acc,p)=>acc+Math.abs(candidate.energy-p.energy),0);
+         if(sum<bestSum){best=candidate;bestSum=sum;}
+       }
+       return best;
      });
-
-     const findMin = (curr, target) => {
-       if (curr === target) return 0;
-       if (!graph[curr]) return 1e9;
-       let mW = 1e9;
-       for (const e of graph[curr]) mW = Math.min(mW, e.w + findMin(e.to, target));
-       return mW;
-     };
-
-     const minPath = findMin('1', String(numNodes));
-     const ans = Math.floor(minPath);
-
-     return {
-       file: {name: '23.txt', text: edges.sort(() => Math.random() - 0.5).join('\n')},
-       q: `В текстовом файле 23.txt содержится описание ациклического ориентированного взвешенного графа. В каждой строке файла записаны два натуральных числа (L, M) и одно положительное вещественное число (W) — номера вершин и вес ребра. Найдите и запишите в ответе <b>целую часть длины кратчайшего пути</b> из вершины с номером 1 в вершину с номером ${numNodes}.`,
-       a: String(ans),
-       s: `В Python через рекурсию с мемоизацией (@lru_cache):\nКратчайший путь = ${minPath.toFixed(1)}. Целая часть: ${ans}.`
-     };
-   }},
-
-  // --- Задание 24 ---
-  {id: 's24', name: 'Строка из файла', n: 24, f: 1,
-   h: 'Замените запрещенное сочетание символов на пробел в Python и найдите max(len(c)).',
-   g() {
-     const L = r(2000, 4000), chars = ['A', 'B', 'C', 'D'];
-     const pair = pick(['AB', 'BC', 'CD', 'CA']);
-     const s = Array.from({length: L}, () => pick(chars)).join('');
-     let best = 1, curLen = 1;
-     for (let i = 1; i < L; i++) {
-       if (s[i - 1] + s[i] === pair) {
-         best = Math.max(best, curLen);
-         curLen = 1;
-       } else {
-         curLen++;
+     let q1=0;
+     for(const group of groups){
+       const special=group.filter(p=>p.tag==='II');
+       for(let i=0;i<special.length;i++) for(let j=i+1;j<special.length;j++){
+         q1=Math.max(q1,Math.hypot(special[i].x-special[j].x,special[i].y-special[j].y));
        }
      }
-     best = Math.max(best, curLen);
+     const q2=Math.max(...centers.map(p=>p.energy));
+     const ans1=Math.floor(q1*10000), ans2=Math.floor(q2*10000);
+     const fileText=points.sort(()=>Math.random()-0.5).map(p=>[
+       p.x.toFixed(4),p.y.toFixed(4),p.vx.toFixed(5),p.vy.toFixed(5),p.mass.toFixed(4),p.tag
+     ].join(' ')).join('\n');
      return {
-       file: {name: '24.txt', text: s},
-       q: `Текстовый файл 24.txt содержит строку из символов A, B, C, D (длина ${L}). Найдите максимальную длину подстроки, не содержащей сочетания букв «${pair}».`,
-       a: String(best),
-       s: `В Python: s = open('24.txt').read(). Максимальная длина: ${best}.`
-     };
-   }},
-
-  // --- Задание 25 (Каноническая маска числа) ---
-  {id: 'mask25', name: 'Маска числа', n: 25,
-   h: 'Используйте fnmatch в Python и перебирайте числа с шагом делителя.',
-   g() {
-     const div = pick([1917, 2024, 3123, 4217]);
-     const matches = [];
-     for (let n = div; n <= 1500000; n += div) {
-       const str = String(n);
-       if (/^12\d4.*5$/.test(str)) {
-         matches.push({val: n, q: Math.floor(n / div)});
-       }
-     }
-     const resMatches = matches.length >= 2 ? matches.slice(0, 4) : [
-       {val: 12045, q: Math.floor(12045 / 15)},
-       {val: 123405, q: Math.floor(123405 / 15)}
-     ];
-     const ans = resMatches.map(m => m.q).join(' ');
-     return {
-       q: `Назовём маской числа последовательность цифр, в которой символ «?» означает ровно одну произвольную цифру, а «*» — любую последовательность цифр произвольной длины (в том числе пустую). Найдите все натуральные числа, соответствующие маске <b>12?4*5</b>, делящиеся на <b>${div}</b> без остатка. В ответе запишите через пробел <b>результаты деления этих чисел на ${div}</b> в порядке возрастания соответствующих чисел.`,
-       a: ans,
-       s: `В Python:\nfrom fnmatch import fnmatch\nfor x in range(${div}, 10**7, ${div}):\n  if fnmatch(str(x), '12?4*5'):\n    print(x // ${div})\nРезультаты деления: ${ans}.`
-     };
-   }},
-
-  // --- Задание 26 ---
-  {id: 'dsk', name: 'Обработка данных (жадный алгоритм)', n: 26, f: 1,
-   h: 'Отсортируйте файлы по возрастанию. На последнем шаге замените файл на максимально возможный из оставшихся.',
-   g() {
-     const n = r(200, 350), S = r(8, 15) * 1000;
-     const d = Array.from({length: n}, () => r(15, 350));
-     const sorted = [...d].sort((a, b) => a - b);
-     let sum = 0, count = 0;
-     while (count < n && sum + sorted[count] <= S) {
-       sum += sorted[count];
-       count++;
-     }
-     const remainder = S - (sum - sorted[count - 1]);
-     let maxLast = sorted[count - 1];
-     for (let i = count - 1; i < n; i++) {
-       if (sorted[i] <= remainder) maxLast = sorted[i];
-     }
-     return {
-       file: {name: '26.txt', text: `${S} ${n}\n` + d.join('\n')},
-       q: `В первой строке входного файла 26.txt записаны два числа: объем дискового пространства S (${S} Мб) и количество пользователей N (${n}). В следующих N строках указаны объемы файлов каждого пользователя. В ответе запишите <b>два числа через пробел</b>: наибольшее число пользователей, чьи данные могут быть сохранены, и максимальный объем файла, который может быть сохранен при этом условии.`,
-       a: `${count} ${maxLast}`,
-       s: `Жадный алгоритм: сохранено ${count} файлов. Максимальный размер последнего файла: ${maxLast} Мб. Ответ: ${count} ${maxLast}.`
-     };
-   }},
-
-  // --- Задание 27 ---
-  {id: 's27', name: 'Кластеризация данных', n: 27, f: 1,
-   h: 'Разделите точки на кластеры по пороговому значению координаты и найдите центроиды каждого кластера.',
-   g() {
-     const n1 = r(40, 60), n2 = r(40, 60);
-     const c1x = r(3, 7), c1y = r(4, 8);
-     const c2x = r(18, 25), c2y = r(15, 22);
-     const pts = [];
-     let s1x = 0, s1y = 0, s2x = 0, s2y = 0;
-     for (let i = 0; i < n1; i++) {
-       const x = Number((c1x + (Math.random() - 0.5) * 3.5).toFixed(3));
-       const y = Number((c1y + (Math.random() - 0.5) * 3.5).toFixed(3));
-       pts.push(`${x} ${y}`);
-       s1x += x; s1y += y;
-     }
-     for (let i = 0; i < n2; i++) {
-       const x = Number((c2x + (Math.random() - 0.5) * 3.5).toFixed(3));
-       const y = Number((c2y + (Math.random() - 0.5) * 3.5).toFixed(3));
-       pts.push(`${x} ${y}`);
-       s2x += x; s2y += y;
-     }
-     const p1x = s1x / n1, p1y = s1y / n1;
-     const p2x = s2x / n2, p2y = s2y / n2;
-     const q1 = Math.floor((p1x + p2x) / 2 * 10000);
-     const q2 = Math.floor((p1y + p2y) / 2 * 10000);
-     return {
-       file: {name: '27.txt', text: `${n1 + n2}\n` + pts.sort(() => Math.random() - 0.5).join('\n')},
-       q: `Рассматриваются координаты частиц на плоскости (файл 27.txt). Известно, что частицы подразделяются ровно на 2 непересекающихся кластера. Для каждого кластера найдите координаты его геометрического центра (центроида). В ответе запишите <b>два числа через пробел</b>: сначала целую часть среднего значения абсцисс (X) центроидов, умноженного на 10 000, затем целую часть среднего значения ординат (Y) центроидов, умноженного на 10 000.`,
-       a: `${q1} ${q2}`,
-       s: `Центроид 1: (${p1x.toFixed(3)}, ${p1y.toFixed(3)}), Центроид 2: (${p2x.toFixed(3)}, ${p2y.toFixed(3)}). Среднее X·10000 = ${q1}, среднее Y·10000 = ${q2}. Ответ: ${q1} ${q2}.`
+       file:{name:'27.txt',text:fileText},
+       q:'Файл 27.txt содержит для каждой частицы координаты x и y, компоненты скорости Vx и Vy, массу m и структурный признак. Частицы образуют ровно четыре кластера по кинетической энергии E=0,5·m·(Vx²+Vy²). Модуль разности энергий любых двух частиц одного кластера не превышает 2,0. Центром кластера считается реальная частица, у которой сумма модулей разностей энергии с остальными частицами этого кластера минимальна. Для каждого кластера найдите центр. Затем определите Q1 — наибольшее евклидово расстояние между частицами с признаком II, принадлежащими одному кластеру, и Q2 — максимальную кинетическую энергию среди центров. В ответе запишите в одной строке два числа: целую часть Q1·10000 и целую часть Q2·10000.',
+       a:ans1+' '+ans2,
+       s:'Энергию каждой частицы считаем по формуле E=0,5·m·(Vx²+Vy²). Внутри каждого из четырёх кластеров центр выбирается среди реальных частиц по минимальной сумме |E_i−E_j|. Максимальное расстояние между частицами с признаком II внутри одного кластера равно '+q1.toFixed(5)+'. Наибольшая энергия центра равна '+q2.toFixed(5)+'. Ответ: '+ans1+' '+ans2+'.'
      };
    }}
+
 ];
 
 // Уровни
