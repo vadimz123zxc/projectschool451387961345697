@@ -1,4 +1,4 @@
-// БитТренер: полный эталонный генератор КЕГЭ 2026/2027
+// БитТренер: генераторы тренировочных заданий к КЕГЭ 2027
 const $ = s => document.querySelector(s);
 const r = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const pick = a => a[r(0, a.length - 1)];
