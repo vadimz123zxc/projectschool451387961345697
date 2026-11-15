@@ -639,83 +639,64 @@ const T = [
      };
    }},
 
-// --- Задание 18 (случайные стены и все конечные клетки) ---
-  {id: 'rob', name: 'Робот: стены и конечные клетки', n: 18, f: 1,
-   h: 'Постройте таблицы максимальных и минимальных сумм. Робот останавливается в клетке, из которой нельзя идти ни вправо, ни вниз.',
-   g() {
-     const size = r(10, 16);
-     const coins = Array.from({length:size}, () => Array.from({length:size}, () => r(1,100)));
-     const wallR = Array.from({length:size}, () => Array(size).fill(false));
-     const wallB = Array.from({length:size}, () => Array(size).fill(false));
-     const protectedR = new Set(), protectedB = new Set();
-
-     // Гарантируем хотя бы один открытый маршрут из начала в правый нижний угол.
-     let i = 0, j = 0;
-     while (i < size-1 || j < size-1) {
-       const right = j < size-1, down = i < size-1;
-       if (right && (!down || Math.random() < 0.5)) {
-         protectedR.add(i+':'+j); j++;
-       } else {
-         protectedB.add(i+':'+j); i++;
+  // --- Задание 18 (робот, случайные стены) ---
+  {id:'rob',name:'Робот: максимум и минимум с внутренними стенами',n:18,f:1,
+   h:'Робот идёт только вправо или вниз. Найдите максимальную и минимальную суммы на пути из левой верхней клетки в правую нижнюю.',
+   g(){
+     const size=r(10,14);
+     const coins=Array.from({length:size},()=>Array.from({length:size},()=>r(10,85)));
+     const wallR=Array.from({length:size},()=>Array(size).fill(false));
+     const wallB=Array.from({length:size},()=>Array(size).fill(false));
+     const safeR=new Set(),safeB=new Set();
+     let i=0,j=0;
+     while(i<size-1||j<size-1){
+       const canRight=j<size-1,canDown=i<size-1;
+       if(canRight&&(!canDown||Math.random()<0.5)){safeR.add(i+':'+j);j++;}
+       else{safeB.add(i+':'+j);i++;}
+     }
+     for(i=0;i<size;i++)for(j=0;j<size;j++){
+       if(j<size-1&&!safeR.has(i+':'+j))wallR[i][j]=Math.random()<0.18;
+       if(i<size-1&&!safeB.has(i+':'+j))wallB[i][j]=Math.random()<0.18;
+     }
+     const maxDp=Array.from({length:size},()=>Array(size).fill(-Infinity));
+     const minDp=Array.from({length:size},()=>Array(size).fill(Infinity));
+     maxDp[0][0]=minDp[0][0]=coins[0][0];
+     for(i=0;i<size;i++)for(j=0;j<size;j++){
+       if(i===0&&j===0)continue;
+       const prevMax=[],prevMin=[];
+       if(i>0&&!wallB[i-1][j]&&Number.isFinite(maxDp[i-1][j])){
+         prevMax.push(maxDp[i-1][j]);prevMin.push(minDp[i-1][j]);
+       }
+       if(j>0&&!wallR[i][j-1]&&Number.isFinite(maxDp[i][j-1])){
+         prevMax.push(maxDp[i][j-1]);prevMin.push(minDp[i][j-1]);
+       }
+       if(prevMax.length){
+         maxDp[i][j]=coins[i][j]+Math.max(...prevMax);
+         minDp[i][j]=coins[i][j]+Math.min(...prevMin);
        }
      }
-     for (i=0;i<size;i++) for (j=0;j<size;j++) {
-       if (j<size-1 && !protectedR.has(i+':'+j)) wallR[i][j] = Math.random()<0.16;
-       if (i<size-1 && !protectedB.has(i+':'+j)) wallB[i][j] = Math.random()<0.16;
-     }
-
-     const maxDp = Array.from({length:size},()=>Array(size).fill(-Infinity));
-     const minDp = Array.from({length:size},()=>Array(size).fill(Infinity));
-     maxDp[0][0] = minDp[0][0] = coins[0][0];
-     for (i=0;i<size;i++) for (j=0;j<size;j++) {
-       if (i===0 && j===0) continue;
-       const mx=[], mn=[];
-       if (i>0 && !wallB[i-1][j] && Number.isFinite(maxDp[i-1][j])) {
-         mx.push(maxDp[i-1][j]); mn.push(minDp[i-1][j]);
-       }
-       if (j>0 && !wallR[i][j-1] && Number.isFinite(maxDp[i][j-1])) {
-         mx.push(maxDp[i][j-1]); mn.push(minDp[i][j-1]);
-       }
-       if (mx.length) {
-         maxDp[i][j] = coins[i][j] + Math.max(...mx);
-         minDp[i][j] = coins[i][j] + Math.min(...mn);
-       }
-     }
-
-     const terminal=[];
-     for (i=0;i<size;i++) for (j=0;j<size;j++) {
-       const noRight = j===size-1 || wallR[i][j];
-       const noDown = i===size-1 || wallB[i][j];
-       if (noRight && noDown && Number.isFinite(maxDp[i][j])) {
-         terminal.push({i,j,max:maxDp[i][j],min:minDp[i][j]});
-       }
-     }
-     if (!terminal.length) throw new Error('Нет достижимой конечной клетки');
-     const answerMax = Math.max(...terminal.map(x=>x.max));
-     const answerMin = Math.min(...terminal.map(x=>x.min));
-
+     const answerMax=maxDp[size-1][size-1],answerMin=minDp[size-1][size-1];
      let html='<div style="overflow-x:auto"><table class="g" style="font-size:13px;margin:14px auto">';
-     for (i=0;i<size;i++) {
+     for(i=0;i<size;i++){
        html+='<tr>';
-       for (j=0;j<size;j++) {
+       for(j=0;j<size;j++){
          const b=[];
-         if (j<size-1 && wallR[i][j]) b.push('border-right:4px solid #d02438');
-         if (i<size-1 && wallB[i][j]) b.push('border-bottom:4px solid #d02438');
+         if(j<size-1&&wallR[i][j])b.push('border-right:4px solid #d02438');
+         if(i<size-1&&wallB[i][j])b.push('border-bottom:4px solid #d02438');
          html+='<td style="min-width:30px;height:30px;padding:2px;'+b.join(';')+'">'+coins[i][j]+'</td>';
        }
        html+='</tr>';
      }
      html+='</table></div>';
-
-     let xmlRows='', styles='<Style ss:ID="Default"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>';
-     for (i=0;i<size;i++) {
+     let xmlRows='',styles='<Style ss:ID="Default"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>';
+     for(i=0;i<size;i++){
        xmlRows+='<Row>';
-       for (j=0;j<size;j++) {
+       for(j=0;j<size;j++){
          const borders=[];
-         if (j<size-1 && wallR[i][j]) borders.push('<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>');
-         if (i<size-1 && wallB[i][j]) borders.push('<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>');
+         if(j<size-1&&wallR[i][j])borders.push('<Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>');
+         if(i<size-1&&wallB[i][j])borders.push('<Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="3" ss:Color="#D02438"/>');
          const id='W'+i+'_'+j;
-         if (borders.length) styles+='<Style ss:ID="'+id+'"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders>'+borders.join('')+'</Borders></Style>';
+         if(borders.length)styles+='<Style ss:ID="'+id+'"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Borders>'+borders.join('')+'</Borders></Style>';
          xmlRows+='<Cell ss:StyleID="'+(borders.length?id:'Default')+'"><Data ss:Type="Number">'+coins[i][j]+'</Data></Cell>';
        }
        xmlRows+='</Row>';
@@ -725,13 +706,13 @@ const T = [
        styles+'</Styles><Worksheet ss:Name="Поле"><Table>'+xmlRows+'</Table></Worksheet></Workbook>';
      return {
        file:{name:'18.xls',text:xml,mime:'application/vnd.ms-excel;charset=utf-8;'},
-       q:'В файле 18.xls записано поле размером '+size+'×'+size+'. Робот начинает в левой верхней клетке и может двигаться только вправо или вниз. Внутренние стены обозначены утолщёнными красными границами. Посетив клетку, Робот забирает монету. Он останавливается в клетке, из которой нельзя сделать ни один допустимый ход. Найдите максимальную и минимальную суммы среди всех достижимых конечных клеток. В ответе укажите два числа через пробел: сначала максимум, затем минимум.'+html,
+       q:'В файле 18.xls записано поле размером '+size+'×'+size+'. Робот начинает в левой верхней клетке и должен попасть в правую нижнюю клетку. Он может двигаться только вправо или вниз. Внутренние стены обозначены утолщёнными красными границами. При посещении клетки Робот забирает монету. Определите максимальную и минимальную суммы монет, которые он может собрать. В ответе укажите сначала максимум, затем минимум через пробел.'+html,
        a:answerMax+' '+answerMin,
-       s:'Для каждой клетки считаем максимальную и минимальную сумму от старта. Переход вправо возможен, если справа нет стены, а переход вниз — если снизу нет стены. Конечные клетки имеют закрытые выходы вправо и вниз либо расположены на внешней границе. Максимальная сумма равна '+answerMax+', минимальная — '+answerMin+'.'
+       s:'Для каждой клетки считаем максимум и минимум суммы от старта. Переход вправо возможен, если справа нет стены; переход вниз — если снизу нет стены. На финише получаем максимум '+answerMax+' и минимум '+answerMin+'.'
      };
    }},
 
-    // --- Задания 19, 20, 21 (две кучи, увеличение на 4 или удвоение) ---
+// --- Задания 19, 20, 21 (две кучи, увеличение на 4 или удвоение) ---
   ...[false,true].flatMap(extra=>[19,20,21].map(n=>{
     const spec=extra
       ? {first:r(12,22),goal:r(115,155),add:4,maxS:110}
@@ -801,47 +782,40 @@ const T = [
      };
    }},
 
-  // --- Задание 23 (кратчайший путь в ориентированном взвешенном ациклическом графе) ---
-  {id:'graph23',name:'Граф из файла: кратчайший путь',n:23,f:1,
-   h:'Все рёбра направлены по топологическому порядку. Считайте кратчайшие расстояния от вершины 1, а в ответе оставьте целую часть.',
+    // --- Задание 23 (кратчайший путь в графе из файла) ---
+  {id:'graph23',name:'Граф из файла: кратчайший путь от 1 до 9',n:23,f:1,
+   h:'В файле нет строки с количеством рёбер. Каждая строка содержит начальную вершину, конечную вершину и вес ребра.',
    g(){
-     const middle=[...new Set(Array.from({length:r(10,16)},()=>r(2,999)))].filter(x=>x!==1&&x!==100);
-     const nodes=[1,...middle,100];
-     if(nodes[0]!==1)nodes.unshift(1);
-     if(nodes[nodes.length-1]!==100)nodes.push(100);
-     const edges=[],edgeSet=new Set();
+     const middle=[...new Set(Array.from({length:r(8,14)},()=>r(2,8)))].filter(x=>x!==1&&x!==9).sort((a,b)=>a-b);
+     const nodes=[1,...middle,9],edges=[],edgeSet=new Set();
      const weight=()=>Number((r(10,100000)/10).toFixed(1));
      for(let i=0;i<nodes.length-1;i++){
        const a=nodes[i],b=nodes[i+1];
        edges.push({a,b,w:weight()});edgeSet.add(a+':'+b);
      }
      for(let i=0;i<nodes.length;i++)for(let j=i+2;j<nodes.length;j++){
-       if(edges.length<190&&Math.random()<0.24){
-         const a=nodes[i],b=nodes[j];
-         if(!edgeSet.has(a+':'+b)){edges.push({a,b,w:weight()});edgeSet.add(a+':'+b);}
+       if(edges.length<190&&Math.random()<0.28){
+         const a=nodes[i],b=nodes[j],key=a+':'+b;
+         if(!edgeSet.has(key)){edges.push({a,b,w:weight()});edgeSet.add(key);}
        }
      }
-     const distance=new Map(nodes.map(x=>[x,Infinity]));
-     distance.set(1,0);
-     const outgoing=new Map(nodes.map(x=>[x,[]]));
-     for(const edge of edges)outgoing.get(edge.a).push(edge);
-     for(const node of nodes){
-       for(const edge of outgoing.get(node)){
-         const candidate=distance.get(node)+edge.w;
-         if(candidate<distance.get(edge.b))distance.set(edge.b,candidate);
-       }
+     const outgoing=new Map(nodes.map(v=>[v,[]])),dist=new Map(nodes.map(v=>[v,Infinity]));
+     for(const e of edges)outgoing.get(e.a).push(e);
+     dist.set(1,0);
+     for(const v of nodes)for(const e of outgoing.get(v)){
+       dist.set(e.b,Math.min(dist.get(e.b),dist.get(v)+e.w));
      }
-     const answer=Math.floor(distance.get(100));
-     const textFile=edges.map(e=>e.a+' '+e.b+' '+e.w.toFixed(1)).join('\n');
+     const shortest=dist.get(9),answer=Math.floor(shortest);
+     const fileText=edges.sort(()=>Math.random()-0.5).map(e=>e.a+' '+e.b+' '+e.w.toFixed(1)).join('\n');
      return {
-       file:{name:'23.txt',text:textFile},
-       q:'В текстовом файле 23.txt содержится описание ациклического ориентированного взвешенного графа. В каждой строке записаны два натуральных числа L и M и одно положительное вещественное число W — вес ребра из L в M. Две вершины не соединены более чем одним ребром. Найдите целую часть длины кратчайшего пути из вершины 1 в вершину 100. Существование такого пути гарантируется. Номера вершин могут быть не подряд; L и M не превышают 1000. Числа разделены пробелами.',
+       file:{name:'23.txt',text:fileText},
+       q:'В текстовом файле 23.txt содержится описание ациклического ориентированного взвешенного графа. В каждой строке записаны два натуральных числа L и M и одно положительное вещественное число W — вес ребра из вершины L в M. Две вершины не соединены более чем одним ребром. Найдите целую часть длины кратчайшего пути из вершины 1 в вершину 9. Существование такого пути гарантируется. Вершины могут быть пронумерованы не подряд; L и M не превышают 1000, W не превышает 10 000, количество строк не превышает 200. Числа разделены пробелами и/или табуляциями.',
        a:String(answer),
-       s:'Все рёбра направлены от более ранней вершины топологического порядка к более поздней. Поэтому обрабатываем вершины по этому порядку и для каждого ребра обновляем кратчайшее расстояние до конечной вершины: dist[M]=min(dist[M],dist[L]+W). Длина кратчайшего пути равна '+distance.get(100).toFixed(1)+'. Её целая часть: '+answer+'.'
+       s:'Граф ациклический, все рёбра направлены от меньшего номера вершины к большему, поэтому обрабатываем вершины по возрастанию. Для каждого ребра обновляем dist[M] = min(dist[M], dist[L] + W). Кратчайший путь имеет длину '+shortest.toFixed(1)+'. Целая часть равна '+answer+'.'
      };
    }},
 
-  // --- Задание 24 (самое длинное корректное выражение) ---
+// --- Задание 24 (самое длинное корректное выражение) ---
   {id:'s24',name:'Поиск самого длинного арифметического выражения',n:24,f:1,
    h:'Число — это либо 0, либо цифра 6–9 с последующими цифрами 0, 6–9. Между числами стоит один оператор − или *.',
    g(){
@@ -922,73 +896,69 @@ const T = [
      };
    }},
 
-// --- Задание 26 (рейтинг продуктов по срокам хранения) ---
-  {id:'srv26',name:'Сервер: резервные копии буфера',n:26,f:1,
-   h:'Суммируйте передачи по клиентам. Отдельно смоделируйте заполнение буфера и отберите копии до 11:59:59.',
+  // --- Задание 26 (серверный журнал и резервные копии) ---
+  {id:'srv26',name:'Сервер: два клиента и последняя резервная копия',n:26,f:1,
+   h:'Суммируйте объёмы по каждому клиенту и отдельно найдите последнюю резервную копию до 11:59:59.',
    g(){
-     const N=240,K=r(7500,10500),chosen=r(1000,9999),records=[];
+     const N=r(650,900),K=r(8000,15000),records=[];
      for(let i=0;i<N;i++){
-       const sec=Math.floor(i*86400/N),hour=Math.floor(sec/3600),minute=Math.floor(sec%3600/60),second=sec%60;
-       const client=i%3===0?chosen:r(1000,9999);
-       const amount=client===chosen?r(550,950):r(80,420);
-       records.push({sec,time:[hour,minute,second].map(x=>String(x).padStart(2,'0')).join(':'),client,amount});
+       const sec=Math.floor(i*86399/N);
+       const hour=Math.floor(sec/3600),minute=Math.floor(sec%3600/60),second=sec%60;
+       const time=[hour,minute,second].map(x=>String(x).padStart(2,'0')).join(':');
+       records.push({sec,time,client:r(10000,10060),size:r(100,800)});
      }
      const totals=new Map();
-     for(const x of records)totals.set(x.client,(totals.get(x.client)||0)+x.amount);
-     const winner=[...totals.entries()].sort((a,b)=>b[1]-a[1]||a[0]-b[0])[0][0];
+     for(const p of records)totals.set(p.client,(totals.get(p.client)||0)+p.size);
+     const topTwo=[...totals.values()].sort((a,b)=>b-a).slice(0,2);
+     const topSum=topTwo[0]+topTwo[1];
      let buffer=0;const backups=[];
-     for(const x of records){
-       if(buffer>0&&buffer+x.amount>K){backups.push({sec:x.sec,size:buffer});buffer=0;}
-       buffer+=x.amount;
+     for(const p of records){
+       if(buffer+p.size>K){
+         backups.push({sec:p.sec,time:p.time,size:buffer});
+         buffer=0;
+       }
+       buffer+=p.size;
      }
-     const morning=backups.filter(x=>x.sec<=43199).map(x=>x.size).sort((a,b)=>b-a);
-     const backupSum=morning[0]+morning[1];
-     const fileText=N+' '+K+'\n'+records.map(x=>x.time+' '+x.client+' '+x.amount).join('\n');
+     const morning=backups.filter(p=>p.sec<=43199);
+     if(morning.length<2)throw new Error('Недостаточно резервных копий до полудня');
+     const lastBackup=morning[morning.length-1];
+     const fileText=N+' '+K+'\n'+records.map(p=>p.time+' '+p.client+' '+p.size).join('\n');
      return {
-       file:{name:'26-server.txt',text:fileText},
-       q:'В файле 26-server.txt записаны время запроса, ID клиента и объём переданных данных. Если очередной запрос не помещается в буфере сервера вместимостью '+K+' Кбайт, создаётся резервная копия накопленных данных и буфер очищается. Определите ID клиента с наибольшим суммарным объёмом переданных данных и сумму объёмов двух крупнейших резервных копий, созданных до 12:00. Запишите два числа через пробел.',
-       a:winner+' '+backupSum,
-       s:'Максимальный суммарный объём передан клиентом '+winner+'. Две крупнейшие утренние резервные копии имеют общий объём '+backupSum+' Кбайт.'
+       file:{name:'26.txt',text:fileText},
+       q:'Сервер выполняет запросы на передачу данных. В файле 26.txt записан журнал работы сервера. В первой строке указаны количество запросов N и вместимость специального раздела памяти K в Кбайт. Каждая из следующих N строк содержит время регистрации запроса (ЧЧ:ММ:СС), идентификатор клиентского устройства C и объём данных S в Кбайт. Когда в разделе недостаточно места для очередного запроса, сервер создаёт резервную копию накопленных данных, освобождает раздел и продолжает обработку. Определите наибольший суммарный объём данных, переданных с двух клиентских устройств, а также объём последней по времени резервной копии, выполненной не позднее 11:59:59. В ответ запишите два числа через пробел.',
+       a:topSum+' '+lastBackup.size,
+       s:'Суммируем объёмы отдельно для каждого ID клиента. Два наибольших итога равны '+topTwo[0]+' и '+topTwo[1]+' Кбайт, их сумма — '+topSum+'. Последняя утренняя резервная копия создана в '+lastBackup.time+', её объём — '+lastBackup.size+' Кбайт.'
      };
    }},
-
-
   {id:'rank26',name:'Рейтинг продуктов по срокам хранения (дополнительная модель)',n:26,f:1,
-   h:'Отсортируйте все сроки. Если первым встретился срок хранения с момента изготовления, поставьте продукт на первое свободное место слева; если срок после вскрытия — справа.',
+   h:'Отсортируйте все сроки. При первом появлении срока хранения продукт занимает свободное место слева, при первом появлении срока после вскрытия — справа.',
    g(){
      const N=r(150,260),used=new Set(),products=[];
      while(products.length<N){
        const shelf=r(1,5000),opened=r(1,5000);
        if(shelf===opened||used.has(shelf)||used.has(opened))continue;
-       used.add(shelf);used.add(opened);
-       products.push({id:products.length+1,shelf,opened});
+       used.add(shelf);used.add(opened);products.push({id:products.length+1,shelf,opened});
      }
      const values=[];
-     for(const p of products){
-       values.push({value:p.shelf,id:p.id,kind:'shelf'});
-       values.push({value:p.opened,id:p.id,kind:'opened'});
-     }
+     for(const p of products){values.push({value:p.shelf,id:p.id,kind:'shelf'},{value:p.opened,id:p.id,kind:'opened'});}
      values.sort((a,b)=>a.value-b.value);
      const ranking=Array(N).fill(0),placed=new Set();
      let left=0,right=N-1,lastId=0,lastIndex=-1;
      for(const item of values){
        if(placed.has(item.id))continue;
        const index=item.kind==='shelf'?left++:right--;
-       ranking[index]=item.id;
-       placed.add(item.id);
-       lastId=item.id;
-       lastIndex=index;
+       ranking[index]=item.id;placed.add(item.id);lastId=item.id;lastIndex=index;
      }
      const below=ranking.filter((id,index)=>index>lastIndex&&id!==0).length;
-     const csv='ID;Срок хранения с даты изготовления;Срок после вскрытия\n'+
-       products.map(p=>[p.id,p.shelf,p.opened].join(';')).join('\n');
+     const csv='ID;Срок хранения с даты изготовления;Срок после вскрытия\n'+products.map(p=>[p.id,p.shelf,p.opened].join(';')).join('\n');
      return {
-       file:{name:'26.csv',text:csv,mime:'text/csv;charset=utf-8;'},
-       q:'В файле 26.csv записаны сроки хранения продуктов с даты изготовления и сроки годности после вскрытия упаковки. Все значения различны. Обработайте сроки по возрастанию. Если очередное минимальное значение относится к сроку хранения с даты изготовления, поместите соответствующий продукт на первое свободное место рейтинга слева. Если оно относится к сроку после вскрытия, поместите продукт на первое свободное место справа. Если продукт уже попал в рейтинг, второе его значение пропустите. Определите ID продукта, который будет размещён последним, и количество продуктов, расположенных ниже него в рейтинге. В ответ запишите два числа через пробел.',
+       file:{name:'26-ranking.csv',text:csv,mime:'text/csv;charset=utf-8;'},
+       q:'В дополнительной тренировочной задаче в файле 26-ranking.csv записаны срок хранения продукта с даты изготовления и срок годности после вскрытия. Расположите продукты в рейтинге по правилу: при первом появлении срока хранения продукт занимает свободное место слева, при первом появлении срока после вскрытия — свободное место справа. Найдите номер последнего размещённого продукта и число продуктов, стоящих ниже него.',
        a:lastId+' '+below,
-       s:'Значения сортируются по возрастанию. Продукт занимает свободное место слева или справа по типу первого встретившегося срока. Последним размещён продукт с ID '+lastId+'. Ниже него находятся '+below+' продуктов.'
+       s:'Последним размещён продукт с номером '+lastId+'. Ниже него находятся '+below+' продуктов.'
      };
    }},
+
 // --- Задание 27 (энергетическая кластеризация и реальная частица-центр) ---
   {id: 's27', name: 'Кластеры по кинетической энергии', n: 27, f: 1,
    h: 'Считайте E=0,5·m·(Vx²+Vy²). Для каждого кластера центр — реальная частица с минимальной суммой модулей разностей кинетических энергий с остальными частицами.',
