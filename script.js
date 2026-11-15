@@ -445,7 +445,7 @@ const T = [
   {id:'pw_rand',name:'Объём памяти: мощность алфавита (дополнительная модель)',n:11,
    h:'Найдите минимальное число бит на символ и округлите объём одной записи вверх до целого байта.',
    g(){
-     const length=r(80,220),records=r(5000,18000),limitKB=r(300,1200),memoryBytes=limitKB*1024;
+     const length=r(80,180),records=r(5000,10000),limitKB=r(600,1500),memoryBytes=limitKB*1024;
      let maxAlphabet=0,bits=0,bytesPerRecord=0;
      for(let i=1;i<=16;i++){
        const bytes=Math.ceil(length*i/8);
@@ -541,16 +541,23 @@ const T = [
    h: 'Переберите цифру x от 0 до основания минус 1 и проверьте делимость суммы.',
    g() {
      const b = pick([12, 14, 15, 16]);
-     const xVal = r(1, b - 1);
+     const hidden = r(1, b - 1);
      const d = pick([11, 13, 17, 19]);
-     let n1_base = 2 * (b ** 2) + 3;
-     let n2_base = 5 * (b ** 2) + 7;
-     let rem = (n1_base + n2_base + xVal * 2 * b) % d;
-     let c = (d - rem) % d;
+     const n1_base = 2 * (b ** 2) + 3;
+     const n2_base = 5 * (b ** 2) + 7;
+     const rem = (n1_base + n2_base + hidden * 2 * b) % d;
+     const c = (d - rem) % d;
+     let xVal = -1;
+     for (let x = 0; x < b; x++) {
+       if ((n1_base + n2_base + x * 2 * b + c) % d === 0) { xVal = x; break; }
+     }
+     if (xVal < 0) throw new Error('Не найдено допустимое значение x');
+     const total = n1_base + n2_base + xVal * 2 * b + c;
+     const quotient = total / d;
      return {
        q: `Операнды арифметического выражения записаны в системе счисления с основанием ${b}:\n2x3_${b} + 5x7_${b} + ${c}.\nВ записи чисел переменной x обозначена неизвестная цифра из алфавита ${b}-ричной системы счисления. Определите наименьшее значение x, при котором значение данного выражения кратно ${d}. Для найденного x вычислите частное от деления значения выражения на ${d} и укажите его в ответе в десятичной системе.`,
-       a: String(Math.floor((n1_base + n2_base + xVal * 2 * b + c) / d)),
-       s: `Перебираем x от 0 до ${b - 1}. При x = ${xVal} значение выражения кратно ${d}. Частное равно ${Math.floor((n1_base + n2_base + xVal * 2 * b + c) / d)}.`
+       a: String(quotient),
+       s: `Перебираем x от 0 до ${b - 1}. Наименьшее подходящее значение x = ${xVal}. Частное равно ${quotient}.`
      };
    }},
 // --- Задание 14 (три варианта из демоверсии) ---
