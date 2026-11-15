@@ -659,110 +659,98 @@ const T = [
     };
   })),
 
-    // --- Задание 22 (параллельное выполнение на заданной миллисекунде) ---
-  {id: 'proc', name: 'Параллельные процессы', n: 22, f: 1,
-   h: 'Старт процесса — следующая миллисекунда после самого позднего завершения всех его зависимостей.',
-   g() {
-     const N=r(15,24), targetMs=r(6,12), processes=[];
-     for (let id=1;id<=N;id++) {
-       const duration=id<=2?r(8,12):r(1,8);
-       const deps=[];
-       if(id>2) for(let j=1;j<id;j++) if(Math.random()<0.12) deps.push(j);
+      // --- Задание 22 (максимум завершённых процессов за первые 17 мс) ---
+  {id:'proc',name:'Параллельные процессы: завершение за 17 мс',n:22,f:1,
+   h:'Найдите самое раннее начало каждого процесса: он стартует после завершения всех зависимостей и не приостанавливается.',
+   g(){
+     const N=r(18,30),limit=17,processes=[];
+     for(let id=1;id<=N;id++){
+       const duration=id<=3?r(2,5):r(1,10),deps=[];
+       if(id>3)for(let j=1;j<id;j++)if(Math.random()<0.13)deps.push(j);
        processes.push({id,duration,deps});
      }
      const finish=[];
-     for(const p of processes) {
+     for(const p of processes){
        p.start=p.deps.length?Math.max(...p.deps.map(id=>finish[id-1]+1)):1;
        p.finish=p.start+p.duration-1;
        finish[p.id-1]=p.finish;
      }
-     const active=processes.filter(p=>p.start<=targetMs&&p.finish>=targetMs).length;
-     const content='ID;Время выполнения, мс;Зависит от ID\n'+
-       processes.map(p=>[p.id,p.duration,p.deps.join(';')||'0'].join(';')).join('\n');
+     const completed=processes.filter(p=>p.finish<=limit).length;
+     const content='ID;Время выполнения, мс;Зависит от ID\\n'+
+       processes.map(p=>[p.id,p.duration,p.deps.join(';')||'0'].join(';')).join('\\n');
      return {
        file:{name:'22.csv',text:content,mime:'text/csv;charset=utf-8;'},
-       q:'В файле 22.csv указаны процессы, время их выполнения и ID процессов, от которых они зависят. Каждый процесс начинается в самое раннее допустимое время и после запуска не приостанавливается. Определите максимальное количество процессов, которые одновременно выполняются на '+targetMs+'-й миллисекунде. Нумерация миллисекунд начинается с 1.',
-       a:String(active),
-       s:'Процесс без зависимостей начинается на 1-й миллисекунде. Остальные стартуют на следующей миллисекунде после завершения последней зависимости. На '+targetMs+'-й миллисекунде работают '+active+' процессов.'
+       q:'В файле 22.csv записана информация о вычислительных процессах. В первом столбце указан ID процесса, во втором — время выполнения в миллисекундах, в третьем — ID процессов, от которых зависит данный процесс. Независимый процесс имеет значение 0. Определите максимальное количество процессов, которые могут быть завершены за первые 17 мс, если каждый процесс начинается в самое раннее допустимое время и не может быть приостановлен.',
+       a:String(completed),
+       s:'Процесс без зависимостей начинается на первой миллисекунде. Остальные стартуют на следующей миллисекунде после завершения последней зависимости. За первые 17 мс завершаются '+completed+' процессов.'
      };
    }},
 
   // --- Задание 23 (подсчёт программ исполнителя) ---
-  {id: 'prg', name: 'Количество программ исполнителя', n: 23,
-   h: 'Используйте рекурсивный перебор. Команда деления на 3 может перескочить через запрещённое число.',
-   g() {
-     const start=r(19,25), target=2, required=r(11,15), forbidden=r(6,9);
-     const memo=new Map();
-     const countWays=(n,seen)=>{
-       if(n===forbidden||n<target) return 0;
-       if(n===target) return seen?1:0;
+  {id:'prg',name:'Количество программ исполнителя',n:23,
+   h:'Запомните, встречалось ли число 13, и исключайте все траектории, в которых появляется число 7.',
+   g(){
+     const start=19,target=2,required=13,forbidden=7,memo=new Map();
+     const ways=(n,seen)=>{
+       if(n===forbidden||n<target)return 0;
+       if(n===target)return seen?1:0;
        const key=n+':'+(seen?1:0);
-       if(memo.has(key)) return memo.get(key);
+       if(memo.has(key))return memo.get(key);
        let total=0;
-       for(const next of [n-1,n-4,Math.floor(n/3)]) {
-         if(next>=target && next<n && next!==forbidden) {
-           total+=countWays(next,seen||next===required);
-         }
+       for(const next of [n-1,n-4,Math.floor(n/3)]){
+         if(next>=target&&next<n&&next!==forbidden)total+=ways(next,seen||next===required);
        }
        memo.set(key,total);
        return total;
      };
-     let answer=countWays(start,start===required);
-     // При неудачной случайной комбинации меняем только обязательный/запрещённый этап.
-     let attempts=0;
-     while(answer===0&&attempts<30) {
-       attempts++;
-       const req=r(10,Math.max(10,start-2));
-       const ban=r(6,9);
-       if(req===ban) continue;
-       memo.clear();
-       const test=(n,seen)=>{
-         if(n===ban||n<target) return 0;
-         if(n===target) return seen?1:0;
-         const key=n+':'+(seen?1:0);
-         if(memo.has(key)) return memo.get(key);
-         let total=0;
-         for(const next of [n-1,n-4,Math.floor(n/3)]) {
-           if(next>=target&&next<n&&next!==ban) total+=test(next,seen||next===req);
-         }
-         memo.set(key,total); return total;
-       };
-       const v=test(start,start===req);
-       if(v>0){answer=v;}
-     }
+     const answer=ways(start,false);
      return {
-       q:'Исполнитель преобразует число на экране. Команда A вычитает 1, команда B вычитает 4, команда C заменяет число целой частью от деления на 3. Сколько существует программ, которые преобразуют число '+start+' в число '+target+', при этом траектория вычислений обязательно содержит число '+required+' и не содержит число '+forbidden+'? Траектория — последовательность результатов выполнения команд.',
+       q:'Исполнитель преобразует число на экране. Есть три команды: A — вычесть 1; B — вычесть 4; C — заменить число целой частью от деления на 3. Сколько существует программ, которые преобразуют число 19 в число 2, при этом траектория вычислений не содержит число 7 и содержит число 13?',
        a:String(answer),
-       s:'Перебираем допустимые переходы n−1, n−4 и floor(n/3), не заходя в '+forbidden+'. В состоянии храним, встречалось ли обязательное число '+required+'. Динамический подсчёт даёт '+answer+' программ.'
+       s:'Для каждого числа n считаем количество способов дойти до 2. В дополнительном параметре запоминаем, встречалось ли число 13. Переходы соответствуют командам n−1, n−4 и floor(n/3). Траектории, попавшие в 7, не учитываются. Получаем '+answer+' программ.'
      };
    }},
 
-  // --- Задание 24 (максимальная корректная последовательность-выражение) ---
-  {id: 's24', name: 'Корректное арифметическое выражение в файле', n: 24, f: 1,
-   h: 'Число — это 0 либо цифра 6–9 с последующими цифрами 0, 6–9. Между числами должен стоять один знак − или *.',
-   g() {
-     const alphabet=['0','6','7','8','9','-','*'], length=r(2500,4500);
-     const chars=Array.from({length},()=>pick(alphabet));
-     const chunk=pick(['6789*70-89*6','0*78-9*60','9876-70*89*6']);
-     const at=r(100,Math.max(101,length-chunk.length-100));
-     chunk.split('').forEach((ch,i)=>chars[at+i]=ch);
-     const data=chars.join('');
-     const expr=/(?:0|[6789][06789]*)(?:[-*](?:0|[6789][06789]*))*/y;
-     let best=0, bestStart=0;
+  // --- Задание 24 (длинный фрагмент с 2025 и буквами Y) ---
+  {id:'s24',name:'Поиск длинного фрагмента в текстовом файле',n:24,f:1,
+   h:'Для каждого начала найдите самый длинный конец, при котором в отрезке ровно 80 букв Y. Затем проверьте число вхождений 2025.',
+   g(){
+     const alphabet='1346789ABCDEFGHIJKLMNOPQRSTUVWXZ';
+     const randomText=len=>Array.from({length:len},()=>alphabet[r(0,alphabet.length-1)]).join('');
+     const prefix=[],core=[],suffix=[];
+     for(let i=0;i<20;i++){prefix.push(randomText(12),'2025');if(i%2===0)prefix.push('Y');}
+     for(let i=0;i<120;i++){core.push(randomText(r(5,14)),'2025');if(i<80)core.push('Y');}
+     for(let i=0;i<20;i++){suffix.push(randomText(12),'2025');if(i%2===0)suffix.push('Y');}
+     const data=prefix.join('')+core.join('')+suffix.join('');
+     const yPos=[],patternPos=[];
      for(let i=0;i<data.length;i++){
-       expr.lastIndex=i;
-       const m=expr.exec(data);
-       if(m&&m[0].length>best){best=m[0].length;bestStart=i;}
+       if(data[i]==='Y')yPos.push(i);
+       if(data.startsWith('2025',i))patternPos.push(i);
+     }
+     const lowerBound=(arr,value)=>{
+       let lo=0,hi=arr.length;
+       while(lo<hi){const mid=(lo+hi)>>1;if(arr[mid]<value)lo=mid+1;else hi=mid;}
+       return lo;
+     };
+     let best=0,bestStart=0,bestEnd=0,bestPatterns=0;
+     for(let left=0;left<data.length;left++){
+       const firstY=lowerBound(yPos,left),index80=firstY+79;
+       if(index80>=yPos.length)continue;
+       const index81=index80+1;
+       const right=index81<yPos.length?yPos[index81]:data.length;
+       const p1=lowerBound(patternPos,left),p2=lowerBound(patternPos,right-3);
+       const occurrences=p2-p1,length=right-left;
+       if(occurrences>=90&&length>best){best=length;bestStart=left;bestEnd=right;bestPatterns=occurrences;}
      }
      return {
        file:{name:'24.txt',text:data},
-       q:'Текстовый файл 24.txt состоит из цифр 0, 6, 7, 8, 9 и знаков арифметических операций «−» и «*». Определите максимальное количество символов в непрерывной последовательности, которая является корректным арифметическим выражением с целыми неотрицательными числами. Два знака операций не стоят рядом, в записи чисел нет ведущих нулей.',
+       q:'Текстовый файл 24.txt состоит из цифр и заглавных букв латинского алфавита. Определите максимальное количество идущих подряд символов, среди которых подстрока «2025» встречается не менее 90 раз и при этом содержится ровно 80 букв Y.',
        a:String(best),
-       s:'Корректное число — отдельный 0 либо число, начинающееся с 6, 7, 8 или 9. Между числами должен быть ровно один знак операции. Самая длинная последовательность начинается с позиции '+(bestStart+1)+' и содержит '+best+' символов.'
+       s:'Для каждого начала рассматриваем самый длинный отрезок, содержащий ровно 80 букв Y: он заканчивается перед следующей, 81-й буквой Y. В отрезке от позиции '+(bestStart+1)+' до '+bestEnd+' содержится '+bestPatterns+' вхождений «2025» и ровно 80 букв Y. Длина равна '+best+'.'
      };
    }},
 
-  // --- Задание 25 (маска числа по модели КЕГЭ) ---
+// --- Задание 25 (маска числа по модели КЕГЭ) ---
   {id: 'mask25', name: 'Маска числа 3?12?14*5', n: 25,
    h: 'Знак ? заменяет одну цифру, знак * — любую последовательность цифр. Проверяйте числа до 10^10 и сортируйте найденные значения.',
    g() {
@@ -783,45 +771,75 @@ const T = [
      };
    }},
 
-  // --- Задание 26 (журнал сервера и резервные копии) ---
-  {id: 'srv26', name: 'Журнал сервера: резервные копии', n: 26, f: 1,
-   h: 'Суммируйте передачи по клиентам. Отдельно смоделируйте заполнение буфера и отберите копии до 11:59:59.',
-   g() {
-     const N=240, K=r(7500,10500), chosen=r(1000,9999), records=[];
+    // --- Задание 26 (рейтинг продуктов по срокам хранения) ---
+  {id:'rank26',name:'Рейтинг продуктов по срокам хранения',n:26,f:1,
+   h:'Отсортируйте все сроки. Если первым встретился срок хранения с момента изготовления, поставьте продукт на первое свободное место слева; если срок после вскрытия — справа.',
+   g(){
+     const N=r(150,260),used=new Set(),products=[];
+     while(products.length<N){
+       const shelf=r(1,5000),opened=r(1,5000);
+       if(shelf===opened||used.has(shelf)||used.has(opened))continue;
+       used.add(shelf);used.add(opened);
+       products.push({id:products.length+1,shelf,opened});
+     }
+     const values=[];
+     for(const p of products){
+       values.push({value:p.shelf,id:p.id,kind:'shelf'});
+       values.push({value:p.opened,id:p.id,kind:'opened'});
+     }
+     values.sort((a,b)=>a.value-b.value);
+     const ranking=Array(N).fill(0),placed=new Set();
+     let left=0,right=N-1,lastId=0,lastIndex=-1;
+     for(const item of values){
+       if(placed.has(item.id))continue;
+       const index=item.kind==='shelf'?left++:right--;
+       ranking[index]=item.id;
+       placed.add(item.id);
+       lastId=item.id;
+       lastIndex=index;
+     }
+     const below=ranking.filter((id,index)=>index>lastIndex&&id!==0).length;
+     const csv='ID;Срок хранения с даты изготовления;Срок после вскрытия\\n'+
+       products.map(p=>[p.id,p.shelf,p.opened].join(';')).join('\\n');
+     return {
+       file:{name:'26.csv',text:csv,mime:'text/csv;charset=utf-8;'},
+       q:'В файле 26.csv записаны сроки хранения продуктов с даты изготовления и сроки годности после вскрытия упаковки. Все значения различны. Обработайте сроки по возрастанию. Если очередное минимальное значение относится к сроку хранения с даты изготовления, поместите соответствующий продукт на первое свободное место рейтинга слева. Если оно относится к сроку после вскрытия, поместите продукт на первое свободное место справа. Если продукт уже попал в рейтинг, второе его значение пропустите. Определите ID продукта, который будет размещён последним, и количество продуктов, расположенных ниже него в рейтинге. В ответ запишите два числа через пробел.',
+       a:lastId+' '+below,
+       s:'Значения сортируются по возрастанию. Продукт занимает свободное место слева или справа по типу первого встретившегося срока. Последним размещён продукт с ID '+lastId+'. Ниже него находятся '+below+' продуктов.'
+     };
+   }},
+  {id:'srv26',name:'Сервер: резервные копии буфера (дополнительная модель)',n:26,f:1,
+   h:'Суммируйте передачи по клиентам. Отдельно смоделируйте заполнение буфера и отберите копии до 11:59:59.',
+   g(){
+     const N=240,K=r(7500,10500),chosen=r(1000,9999),records=[];
      for(let i=0;i<N;i++){
-       const sec=Math.floor(i*86400/N);
-       const hour=Math.floor(sec/3600), minute=Math.floor(sec%3600/60), second=sec%60;
+       const sec=Math.floor(i*86400/N),hour=Math.floor(sec/3600),minute=Math.floor(sec%3600/60),second=sec%60;
        const client=i%3===0?chosen:r(1000,9999);
        const amount=client===chosen?r(550,950):r(80,420);
        records.push({sec,time:[hour,minute,second].map(x=>String(x).padStart(2,'0')).join(':'),client,amount});
      }
      const totals=new Map();
-     for(const x of records) totals.set(x.client,(totals.get(x.client)||0)+x.amount);
+     for(const x of records)totals.set(x.client,(totals.get(x.client)||0)+x.amount);
      const winner=[...totals.entries()].sort((a,b)=>b[1]-a[1]||a[0]-b[0])[0][0];
-
-     let buffer=0; const backups=[];
+     let buffer=0;const backups=[];
      for(const x of records){
-       if(buffer>0&&buffer+x.amount>K){
-         backups.push({sec:x.sec,time:x.time,size:buffer});
-         buffer=0;
-       }
+       if(buffer>0&&buffer+x.amount>K){backups.push({sec:x.sec,size:buffer});buffer=0;}
        buffer+=x.amount;
      }
      const morning=backups.filter(x=>x.sec<=43199).map(x=>x.size).sort((a,b)=>b-a);
-     if(morning.length<2) throw new Error('Меньше двух резервных копий до полудня');
      const backupSum=morning[0]+morning[1];
-     const fileText=N+' '+K+'\n'+records.map(x=>x.time+' '+x.client+' '+x.amount).join('\n');
+     const fileText=N+' '+K+'\\n'+records.map(x=>x.time+' '+x.client+' '+x.amount).join('\\n');
      return {
-       file:{name:'26.txt',text:fileText},
-       q:'В первой строке файла 26.txt указаны количество запросов N и вместимость буфера K (Кбайт). В следующих строках записаны время запроса, ID клиента и объём переданных данных. Если очередной запрос не помещается, сервер сохраняет резервную копию накопленных данных и очищает буфер, после чего обрабатывает новый запрос. Определите ID клиента, передавшего наибольший суммарный объём данных, и сумму объёмов двух крупнейших резервных копий, созданных не позднее 11:59:59. В ответе укажите два числа через пробел.',
+       file:{name:'26-server.txt',text:fileText},
+       q:'В файле 26-server.txt записаны время запроса, ID клиента и объём переданных данных. Если очередной запрос не помещается в буфере сервера вместимостью '+K+' Кбайт, создаётся резервная копия накопленных данных и буфер очищается. Определите ID клиента с наибольшим суммарным объёмом переданных данных и сумму объёмов двух крупнейших резервных копий, созданных до 12:00. Запишите два числа через пробел.',
        a:winner+' '+backupSum,
-       s:'Максимальный суммарный объём передан клиентом '+winner+'. До полудня создано '+morning.length+' резервных копий. Две крупнейшие имеют объёмы '+morning[0]+' и '+morning[1]+' Кбайт; их сумма равна '+backupSum+'.'
+       s:'Максимальный суммарный объём передан клиентом '+winner+'. Две крупнейшие утренние резервные копии имеют общий объём '+backupSum+' Кбайт.'
      };
    }},
 
-  // --- Задание 27 (энергетическая кластеризация и реальная частица-центр) ---
+// --- Задание 27 (энергетическая кластеризация и реальная частица-центр) ---
   {id: 's27', name: 'Кластеры по кинетической энергии', n: 27, f: 1,
-   h: 'Считайте E=0,5·m·(Vx²+Vy²). Центр — реальная частица с минимальной суммой |E−Eдругих|.',
+   h: 'Считайте E=0,5·m·(Vx²+Vy²). Для каждого кластера центр — реальная частица с минимальной суммой евклидовых расстояний до остальных точек кластера.',
    g() {
      const bases=[4.2,12.2,20.2,28.2], groups=[], points=[];
      const tags=['II','II','II','IV','V','I','III','VI','VII','IV','V'];
@@ -844,7 +862,7 @@ const T = [
      const centers=groups.map(group=>{
        let best=group[0], bestSum=Infinity;
        for(const candidate of group){
-         const sum=group.reduce((acc,p)=>acc+Math.abs(candidate.energy-p.energy),0);
+         const sum=group.reduce((acc,p)=>acc+Math.hypot(candidate.x-p.x,candidate.y-p.y),0);
          if(sum<bestSum){best=candidate;bestSum=sum;}
        }
        return best;
@@ -865,7 +883,7 @@ const T = [
        file:{name:'27.txt',text:fileText},
        q:'Файл 27.txt содержит для каждой частицы координаты x и y, компоненты скорости Vx и Vy, массу m и структурный признак. Частицы образуют ровно четыре кластера по кинетической энергии E=0,5·m·(Vx²+Vy²). Модуль разности энергий любых двух частиц одного кластера не превышает 2,0. Центром кластера считается реальная частица, у которой сумма модулей разностей энергии с остальными частицами этого кластера минимальна. Для каждого кластера найдите центр. Затем определите Q1 — наибольшее евклидово расстояние между частицами с признаком II, принадлежащими одному кластеру, и Q2 — максимальную кинетическую энергию среди центров. В ответе запишите в одной строке два числа: целую часть Q1·10000 и целую часть Q2·10000.',
        a:ans1+' '+ans2,
-       s:'Энергию каждой частицы считаем по формуле E=0,5·m·(Vx²+Vy²). Внутри каждого из четырёх кластеров центр выбирается среди реальных частиц по минимальной сумме |E_i−E_j|. Максимальное расстояние между частицами с признаком II внутри одного кластера равно '+q1.toFixed(5)+'. Наибольшая энергия центра равна '+q2.toFixed(5)+'. Ответ: '+ans1+' '+ans2+'.'
+       s:'Энергию каждой частицы считаем по формуле E=0,5·m·(Vx²+Vy²). Внутри каждого из четырёх кластеров центр выбирается среди реальных частиц по минимальной сумме евклидовых расстояний до остальных точек. Максимальное расстояние между частицами с признаком II внутри одного кластера равно '+q1.toFixed(5)+'. Наибольшая энергия центра равна '+q2.toFixed(5)+'. Ответ: '+ans1+' '+ans2+'.'
      };
    }}
 
